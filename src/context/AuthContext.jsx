@@ -6,74 +6,56 @@ export const AuthContext = createContext();
 
 // Provider component
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [user, setUser] = useState(null); // Will hold { username, role }
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    console.log('[AuthContext] Loaded user from localStorage:', savedUser);
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
-  // Function to handle login
   const login = async (username, password) => {
+    console.log('[AuthContext] Login attempt with:', username);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
-        password,
-      });
+      const response = await axios.post(
+        'http://localhost:5000/api/auth/login',
+        { username, password },
+        { withCredentials: true }
+      );
 
-      const jwtToken = response.data.token;
+      const userRole = response.data.role;
+      console.log('[AuthContext] Login successful, role:', userRole);
 
-      localStorage.setItem('token', jwtToken);
-      setToken(jwtToken);
-      await fetchUser(jwtToken); // Fetch user info immediately after login
+      localStorage.setItem('user', JSON.stringify({ role: userRole }));
+      setUser({ role: userRole });
+
+      console.log('[AuthContext] User state after login:', { role: userRole });
       return true;
     } catch (error) {
-      console.error('Login failed:', error.response?.data || error.message);
+      console.error(
+        '[AuthContext] Login failed:',
+        error.response?.data || error.message
+      );
       return false;
     }
   };
 
-  // Function to fetch user data using token
-  const fetchUser = async (jwtToken = token) => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      });
-      setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch user info:', error.response?.data || error.message);
-      logout();
-    }
-  };
-
-  // Check role manually (used in App.jsx useEffect)
-  const checkRole = () => {
-    if (token && !user) {
-      fetchUser();
-    }
-  };
-
-  // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    setToken('');
+    console.log('[AuthContext] Logging out...');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
-  // Auto-fetch user info if token exists on initial load
+  // Debug: watch user changes
   useEffect(() => {
-    if (token && !user) {
-      fetchUser();
-    }
-  }, [token]);
+    console.log('[AuthContext] Current user state:', user);
+  }, [user]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
         login,
         logout,
-        checkRole,
-        isAuthenticated: !!token,
+        isAuthenticated: !!user,
       }}
     >
       {children}

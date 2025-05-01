@@ -9,18 +9,15 @@ import ProtectedRoute from './components/ProtectedRoute'; // Importing Protected
 
 const App = () => {
   // Using the AuthContext to check if the user is logged in
-  const { user, token, checkRole } = useContext(AuthContext);
-
+  // const { user, token, checkRole } = useContext(AuthContext);
   // Effect to check the user's role after login
-  useEffect(() => {
-    if (token) {
-      checkRole();
-    }
-  }, [token, checkRole]);
+  // useEffect(() => {
+  //   if (token) {
+  //     checkRole();
+  //   }
+  // }, [token, checkRole]);
 
   return (
-    <><h1 className="text-red-500 text-3xl font-bold">Hello Tailwind</h1>
-
     <Router>
       <Routes>
         {/* Public routes */}
@@ -49,7 +46,7 @@ const App = () => {
         
       </Routes>
     </Router>
-    </>
+    
   );
 };
 
