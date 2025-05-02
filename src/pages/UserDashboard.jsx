@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext'; // ✅ adjust path if needed
 
 const UserDashboard = () => {
   const [allFiles, setAllFiles] = useState([]);
   const [myFiles, setMyFiles] = useState([]);
   const [fileToUpload, setFileToUpload] = useState(null);
+  const { logout } = useContext(AuthContext); // ✅ get logout
 
-  // Fetch all files (from all users)
   const fetchAllFiles = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/files/allfiles', {
-        withCredentials: true,  // ✅ Assuming cookie-based auth
+      const response = await axios.get('https://cautallyfiles-backend.onrender.com/api/files/allfiles', {
+        withCredentials: true,
       });
-      console.log('[UserDashboard] Fetched all files:', response.data);
-
       const fetchedFiles = Array.isArray(response.data.files) ? response.data.files : [];
       setAllFiles(fetchedFiles);
     } catch (err) {
@@ -21,14 +20,11 @@ const UserDashboard = () => {
     }
   };
 
-  // Fetch user's own files
   const fetchMyFiles = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/files/myfiles', {
-        withCredentials: true,  // ✅ Assuming cookie-based auth
+      const response = await axios.get('https://cautallyfiles-backend.onrender.com/api/files/myfiles', {
+        withCredentials: true,
       });
-      console.log('[UserDashboard] Fetched my files:', response.data);
-
       const fetchedFiles = Array.isArray(response.data.files) ? response.data.files : [];
       setMyFiles(fetchedFiles);
     } catch (err) {
@@ -36,7 +32,6 @@ const UserDashboard = () => {
     }
   };
 
-  // Upload file handler
   const handleFileUpload = async () => {
     if (!fileToUpload) {
       alert('Please select a file to upload.');
@@ -47,23 +42,20 @@ const UserDashboard = () => {
     formData.append('file', fileToUpload);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/files/upload', formData, {
+      const response = await axios.post('https://cautallyfiles-backend.onrender.com/api/files/upload', formData, {
         withCredentials: true,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      console.log('[UserDashboard] File upload response:', response.data);
 
       const newFile = response.data.file;
-
       if (newFile) {
         setMyFiles((prev) => [...prev, newFile]);
-        setAllFiles((prev) => [...prev, newFile]);  // Optionally add to allFiles too
+        setAllFiles((prev) => [...prev, newFile]);
       } else {
-        console.warn('Unexpected upload response format:', response.data);
-        fetchMyFiles();  // fallback: re-fetch my files
-        fetchAllFiles(); // refresh all files too
+        fetchMyFiles();
+        fetchAllFiles();
       }
 
       setFileToUpload(null);
@@ -72,30 +64,33 @@ const UserDashboard = () => {
     }
   };
 
-  // Handle file selection
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setFileToUpload(file);
   };
 
-  // Download file handler
-  const handleDownload = async (fileUrl, filename = 'downloaded_file') => {
+  const handleDownload = async (id) => {
+    
     try {
-      const response = await axios.get(fileUrl, {
+      const res = await axios.get(`https://cautallyfiles-backend.onrender.com/api/files/download/${id}`, {
         withCredentials: true,
-        responseType: 'blob',
       });
-      const blob = new Blob([response.data], { type: 'application/octet-stream' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      link.click();
-    } catch (err) {
-      console.error('Error downloading file:', err);
+      
+ 
+      const downloadUrl = res.data.downloadUrl;
+      
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
+      } else {
+        console.error('Download URL not found in response');
+      }
+      
+    } catch (error) {
+      console.error('Error downloading file:', error);
     }
+
   };
 
-  // On component mount, fetch both sets of files
   useEffect(() => {
     fetchAllFiles();
     fetchMyFiles();
@@ -104,9 +99,17 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen p-4 bg-gray-100">
       <div className="max-w-5xl mx-auto bg-white p-8 rounded-xl shadow-md">
-        <h2 className="text-2xl font-bold mb-6">User Dashboard</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">User Dashboard</h2>
+          <button
+            onClick={logout}
+            className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
+          >
+            Logout
+          </button>
+        </div>
 
-        {/* Upload File Section */}
+        {/* Upload Section */}
         <div className="mb-6 text-right">
           <input
             type="file"
@@ -123,7 +126,7 @@ const UserDashboard = () => {
           </button>
         </div>
 
-        {/* My Files Table */}
+        {/* My Files */}
         <h3 className="text-xl font-semibold mb-4">My Files</h3>
         <table className="w-full table-auto border-collapse mb-8">
           <thead>
@@ -145,8 +148,8 @@ const UserDashboard = () => {
                   <td className="border px-4 py-2">{file.filename}</td>
                   <td className="border px-4 py-2">
                     <button
-                      onClick={() => handleDownload(file.fileurl, file.filename)}
-                      className="bg-green-600 text-white py-1 px-3 rounded-md hover:bg-green-700"
+                      onClick={() => handleDownload(file.id)}
+                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                     >
                       Download
                     </button>
@@ -157,7 +160,7 @@ const UserDashboard = () => {
           </tbody>
         </table>
 
-        {/* All Files Table */}
+        {/* All Files */}
         <h3 className="text-xl font-semibold mb-4">All Files</h3>
         <table className="w-full table-auto border-collapse">
           <thead>
@@ -179,8 +182,8 @@ const UserDashboard = () => {
                   <td className="border px-4 py-2">{file.filename}</td>
                   <td className="border px-4 py-2">
                     <button
-                      onClick={() => handleDownload(file.fileurl, file.filename)}
-                      className="bg-green-600 text-white py-1 px-3 rounded-md hover:bg-green-700"
+                      onClick={() => handleDownload(file.fileurl)}
+                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                     >
                       Download
                     </button>

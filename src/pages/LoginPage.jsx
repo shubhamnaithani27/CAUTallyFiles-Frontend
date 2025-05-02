@@ -32,7 +32,6 @@ const LoginPage = () => {
   // Wait for user to be set after login, then redirect
   useEffect(() => {
     if (loginAttempted && user?.role) {
-      console.log("lll");
       navigate(user.role === 'admin' ? '/admin' : '/user');
     }
   }, [user, loginAttempted, navigate]);
@@ -77,12 +76,7 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <p className="text-sm text-center mt-4">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline">
-            Register
-          </Link>
-        </p>
+       
       </div>
     </div>
   );

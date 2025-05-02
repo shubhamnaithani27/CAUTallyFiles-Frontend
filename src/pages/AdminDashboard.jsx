@@ -1,47 +1,40 @@
 import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext'; // ✅ import AuthContext
 
 const AdminDashboard = () => {
-  const { token } = useContext(AuthContext);
+  const { logout } = useContext(AuthContext); // ✅ use logout from context
   const [files, setFiles] = useState([]);
   const [users, setUsers] = useState([]);
 
-  // Editable fields state
   const [editUser, setEditUser] = useState({});
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [addUserError, setAddUserError] = useState('');
 
-  // Fetch all user files
   const fetchAllFiles = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/files/allfiles', {
+      const res = await axios.get('https://cautallyfiles-backend.onrender.com/api/files/allfiles', {
         withCredentials: true,
       });
-      console.log('Files response:', res.data);  // ✅ Debugging log
-      // Safely access files array
-      const filesArray = Array.isArray(res.data)
-        ? res.data
-        : res.data.files || [];
+      const filesArray = Array.isArray(res.data) ? res.data : res.data.files || [];
       setFiles(filesArray);
     } catch (err) {
       console.error('Error fetching files:', err);
-      setFiles([]);  // Set empty array if error
+      setFiles([]);
     }
   };
 
-  // Fetch all users
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/admin/users', {
+      const res = await axios.get('https://cautallyfiles-backend.onrender.com/api/admin/users', {
         withCredentials: true,
       });
-      console.log('Users response:', res.data);  // ✅ Debugging log
-      const usersArray = Array.isArray(res.data)
-        ? res.data
-        : res.data.users || [];
+      const usersArray = Array.isArray(res.data) ? res.data : res.data.users || [];
       setUsers(usersArray);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setUsers([]);  // Set empty array if error
+      setUsers([]);
     }
   };
 
@@ -50,24 +43,28 @@ const AdminDashboard = () => {
     fetchUsers();
   }, []);
 
-  // Handle download
-  const handleDownload = async (url) => {
-    try {
-      const res = await axios.get(url, {
-        withCredentials: true,
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/octet-stream' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'downloaded_file';
-      link.click();
-    } catch (err) {
-      console.error('Error downloading file:', err);
+  const handleDownload = async (id) => {
+
+  try {
+    const res = await axios.get(`https://cautallyfiles-backend.onrender.com/api/files/download/${id}`, {
+      withCredentials: true,
+    });
+    
+    // Assuming the download URL is in res.data.downloadUrl
+    const downloadUrl = res.data.downloadUrl;
+    
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank');
+    } else {
+      console.error('Download URL not found in response');
     }
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+  }
+
   };
 
-  // Handle input changes for edit
   const handleChange = (id, field, value) => {
     setEditUser((prev) => ({
       ...prev,
@@ -75,36 +72,32 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Save changes to user
   const handleSave = async (id) => {
     const updates = editUser[id];
     try {
       if (updates?.username || updates?.password) {
-        await axios.put(`http://localhost:5000/api/admin/user/${id}`, updates, {
+        await axios.put(`https://cautallyfiles-backend.onrender.com/api/admin/user/${id}`, updates, {
           withCredentials: true,
         });
       }
       if (updates?.role) {
         await axios.put(
-          `http://localhost:5000/api/admin/user/${id}/role`,
+          `https://cautallyfiles-backend.onrender.com/api/admin/user/${id}/role`,
           { role: updates.role },
-          {
-            withCredentials: true,
-          }
+          { withCredentials: true }
         );
       }
-      fetchUsers(); // Refresh data
+      fetchUsers();
       setEditUser((prev) => ({ ...prev, [id]: {} }));
     } catch (err) {
       console.error('Error saving user updates:', err);
     }
   };
 
-  // Delete user
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/user/${id}`, {
+      await axios.delete(`https://cautallyfiles-backend.onrender.com/api/admin/user/${id}`, {
         withCredentials: true,
       });
       fetchUsers();
@@ -113,8 +106,43 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleNewUserChange = (e) => {
+    setNewUser({ ...newUser, [e.target.name]: e.target.value });
+    setAddUserError('');
+  };
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    if (!newUser.username || !newUser.password) {
+      setAddUserError('All fields are required.');
+      return;
+    }
+    try {
+      await axios.post('https://cautallyfiles-backend.onrender.com/api/auth/register', newUser, {
+        withCredentials: true,
+      });
+      alert('User added successfully!');
+      setNewUser({ username: '', password: '', role: 'user' });
+      setShowAddUser(false);
+      fetchUsers();
+    } catch (err) {
+      setAddUserError(err.response?.data?.message || 'Failed to add user.');
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-100 space-y-10">
+      {/* Top bar with Logout */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <button
+          onClick={logout}
+          className="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
+        >
+          Logout
+        </button>
+      </div>
+
       {/* Box 1 – User Files */}
       <div className="bg-white shadow-md p-6 rounded-xl">
         <h2 className="text-xl font-bold mb-4">All User Files</h2>
@@ -140,7 +168,7 @@ const AdminDashboard = () => {
                   <td className="border px-4 py-2">{file.filename}</td>
                   <td className="border px-4 py-2">
                     <button
-                      onClick={() => handleDownload(file.fileurl)}
+                      onClick={() => handleDownload(file.id)}
                       className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                     >
                       Download
@@ -155,7 +183,65 @@ const AdminDashboard = () => {
 
       {/* Box 2 – User Management */}
       <div className="bg-white shadow-md p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4">User Management</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">User Management</h2>
+          <button
+            onClick={() => setShowAddUser(!showAddUser)}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            {showAddUser ? 'Cancel' : 'Add User'}
+          </button>
+        </div>
+
+        {showAddUser && (
+          <form
+            onSubmit={handleAddUser}
+            className="space-y-4 mb-6 bg-gray-50 p-4 rounded-lg shadow"
+          >
+            {addUserError && <p className="text-red-500 text-sm">{addUserError}</p>}
+            <div>
+              <label className="block mb-1 text-gray-700">Username (email)</label>
+              <input
+                type="text"
+                name="username"
+                value={newUser.username}
+                onChange={handleNewUserChange}
+                className="w-full px-4 py-2 border rounded-md"
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-gray-700">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={newUser.password}
+                onChange={handleNewUserChange}
+                className="w-full px-4 py-2 border rounded-md"
+                placeholder="Enter password"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-gray-700">Role</label>
+              <select
+                name="role"
+                value={newUser.role}
+                onChange={handleNewUserChange}
+                className="w-full px-4 py-2 border rounded-md"
+              >
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+            >
+              Add User
+            </button>
+          </form>
+        )}
+
         <table className="w-full table-auto border-collapse">
           <thead>
             <tr>
@@ -229,3 +315,5 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+
+
