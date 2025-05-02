@@ -14,11 +14,17 @@ const AdminDashboard = () => {
   const fetchAllFiles = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/files/allfiles', {
-        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
       });
-      setFiles(res.data);
+      console.log('Files response:', res.data);  // ✅ Debugging log
+      // Safely access files array
+      const filesArray = Array.isArray(res.data)
+        ? res.data
+        : res.data.files || [];
+      setFiles(filesArray);
     } catch (err) {
       console.error('Error fetching files:', err);
+      setFiles([]);  // Set empty array if error
     }
   };
 
@@ -26,11 +32,16 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
       });
-      setUsers(res.data);
+      console.log('Users response:', res.data);  // ✅ Debugging log
+      const usersArray = Array.isArray(res.data)
+        ? res.data
+        : res.data.users || [];
+      setUsers(usersArray);
     } catch (err) {
       console.error('Error fetching users:', err);
+      setUsers([]);  // Set empty array if error
     }
   };
 
@@ -43,7 +54,7 @@ const AdminDashboard = () => {
   const handleDownload = async (url) => {
     try {
       const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
         responseType: 'blob',
       });
       const blob = new Blob([res.data], { type: 'application/octet-stream' });
@@ -68,15 +79,19 @@ const AdminDashboard = () => {
   const handleSave = async (id) => {
     const updates = editUser[id];
     try {
-      if (updates.username || updates.password) {
+      if (updates?.username || updates?.password) {
         await axios.put(`http://localhost:5000/api/admin/user/${id}`, updates, {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         });
       }
-      if (updates.role) {
-        await axios.put(`http://localhost:5000/api/admin/user/${id}/role`, { role: updates.role }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      if (updates?.role) {
+        await axios.put(
+          `http://localhost:5000/api/admin/user/${id}/role`,
+          { role: updates.role },
+          {
+            withCredentials: true,
+          }
+        );
       }
       fetchUsers(); // Refresh data
       setEditUser((prev) => ({ ...prev, [id]: {} }));
@@ -87,10 +102,10 @@ const AdminDashboard = () => {
 
   // Delete user
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       await axios.delete(`http://localhost:5000/api/admin/user/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
       });
       fetchUsers();
     } catch (err) {
@@ -112,13 +127,15 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {files.length === 0 ? (
+            {!Array.isArray(files) || files.length === 0 ? (
               <tr>
-                <td colSpan="3" className="border px-4 py-2 text-center">No files found</td>
+                <td colSpan="3" className="border px-4 py-2 text-center">
+                  No files found
+                </td>
               </tr>
             ) : (
               files.map((file, index) => (
-                <tr key={file.id}>
+                <tr key={file.id || index}>
                   <td className="border px-4 py-2">{index + 1}</td>
                   <td className="border px-4 py-2">{file.filename}</td>
                   <td className="border px-4 py-2">
@@ -138,7 +155,7 @@ const AdminDashboard = () => {
 
       {/* Box 2 – User Management */}
       <div className="bg-white shadow-md p-6 rounded-xl">
-        <h2 className="text-xl font-bold mb-4"> User Management</h2>
+        <h2 className="text-xl font-bold mb-4">User Management</h2>
         <table className="w-full table-auto border-collapse">
           <thead>
             <tr>
@@ -159,7 +176,9 @@ const AdminDashboard = () => {
                     <input
                       type="text"
                       defaultValue={user.username}
-                      onChange={(e) => handleChange(user.id, 'username', e.target.value)}
+                      onChange={(e) =>
+                        handleChange(user.id, 'username', e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     />
                   </td>
@@ -167,14 +186,18 @@ const AdminDashboard = () => {
                     <input
                       type="password"
                       placeholder="••••••"
-                      onChange={(e) => handleChange(user.id, 'password', e.target.value)}
+                      onChange={(e) =>
+                        handleChange(user.id, 'password', e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     />
                   </td>
                   <td className="border px-4 py-2">
                     <select
                       defaultValue={user.role}
-                      onChange={(e) => handleChange(user.id, 'role', e.target.value)}
+                      onChange={(e) =>
+                        handleChange(user.id, 'role', e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     >
                       <option value="user">user</option>
@@ -206,137 +229,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-// // This code is a React component for an admin dashboard that allows the admin to manage user files and user accounts. It includes features like file download, user editing, and user deletion.
-// // The component uses Axios for API requests and React's useState and useEffect hooks for state management and side effects. The UI is styled using Tailwind CSS classes.
-
-// import React, { useEffect, useState } from 'react';
-
-// const AdminDashboard = () => {
-//   const [files, setFiles] = useState([]);
-//   const [users, setUsers] = useState([]);
-
-//   const mockFiles = [
-//     { id: 1, filename: 'a.pdf', fileurl: 'https://example.com/a.pdf' },
-//     { id: 2, filename: 'b.txt', fileurl: 'https://example.com/b.txt' },
-//   ];
-
-//   const mockUsers = [
-//     { id: 1, username: 'john@example.com', password: '123456', role: 'user' },
-//     { id: 2, username: 'admin@example.com', password: 'admin123', role: 'admin' },
-//   ];
-
-//   useEffect(() => {
-//     setFiles(mockFiles);
-//     setUsers(mockUsers);
-//   }, []);
-
-//   const handleRoleChange = (id, newRole) => {
-//     setUsers(users.map(user =>
-//       user.id === id ? { ...user, role: newRole } : user
-//     ));
-//   };
-
-//   const handleInputChange = (id, field, value) => {
-//     setUsers(users.map(user =>
-//       user.id === id ? { ...user, [field]: value } : user
-//     ));
-//   };
-
-//   const handleDelete = (id) => {
-//     setUsers(users.filter(user => user.id !== id));
-//   };
-
-//   return (
-//     <div className="p-4 space-y-10">
-//       <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-
-//       {/* Box 1: File Viewer */}
-//       <div className="border p-4 rounded shadow">
-//         <h3 className="text-lg font-semibold mb-2">User Files (Read-only)</h3>
-//         <table className="w-full border text-left">
-//           <thead>
-//             <tr>
-//               <th>#</th>
-//               <th>Filename</th>
-//               <th>Download</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {files.map((file, index) => (
-//               <tr key={file.id}>
-//                 <td>{index + 1}</td>
-//                 <td>{file.filename}</td>
-//                 <td>
-//                   <a
-//                     href={file.fileurl}
-//                     download
-//                     className="text-blue-500 underline"
-//                   >
-//                     Download
-//                   </a>
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-
-//       {/* Box 2: User Management */}
-//       <div className="border p-4 rounded shadow">
-//         <h3 className="text-lg font-semibold mb-2">Manage Users</h3>
-//         <table className="w-full border text-left">
-//           <thead>
-//             <tr>
-//               <th>User ID</th>
-//               <th>Username</th>
-//               <th>Password</th>
-//               <th>Role</th>
-//               <th>Delete</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {users.map(user => (
-//               <tr key={user.id}>
-//                 <td>{user.id}</td>
-//                 <td>
-//                   <input
-//                     value={user.username}
-//                     onChange={(e) => handleInputChange(user.id, 'username', e.target.value)}
-//                     className="border px-2 py-1"
-//                   />
-//                 </td>
-//                 <td>
-//                   <input
-//                     value={user.password}
-//                     onChange={(e) => handleInputChange(user.id, 'password', e.target.value)}
-//                     className="border px-2 py-1"
-//                   />
-//                 </td>
-//                 <td>
-//                   <select
-//                     value={user.role}
-//                     onChange={(e) => handleRoleChange(user.id, e.target.value)}
-//                     className="border px-2 py-1"
-//                   >
-//                     <option value="user">User</option>
-//                     <option value="admin">Admin</option>
-//                   </select>
-//                 </td>
-//                 <td>
-//                   <button
-//                     onClick={() => handleDelete(user.id)}
-//                     className="text-red-500 underline"
-//                   >
-//                     Delete
-//                   </button>
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default AdminDashboard;
